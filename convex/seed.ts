@@ -4,8 +4,26 @@ import { v } from "convex/values";
 export const seedDatabase = mutation({
   args: {},
   handler: async (ctx) => {
-    // Clear existing data (optional - comment out if you want to keep existing data)
-    const existingAccounts = await ctx.db.query("accounts").collect();
+    // Get current user
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Clear existing data for current user only
+    const existingAccounts = await ctx.db
+      .query("accounts")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
     const existingContacts = await ctx.db.query("contacts").collect();
     const existingOpportunities = await ctx.db.query("opportunities").collect();
     const existingPreApprovals = await ctx.db.query("preApprovals").collect();
@@ -58,6 +76,7 @@ export const seedDatabase = mutation({
     // Create accounts
     for (const accountData of accountsData) {
       const accountId = await ctx.db.insert("accounts", {
+        userId: user._id,
         ...accountData,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -85,6 +104,7 @@ export const seedDatabase = mutation({
       for (let i = 0; i < 2; i++) {
         if (contactIndex < contactsData.length) {
           await ctx.db.insert("contacts", {
+            userId: user._id,
             accountId: account.id,
             ...contactsData[contactIndex],
             createdAt: Date.now(),
@@ -113,6 +133,7 @@ export const seedDatabase = mutation({
       const numOpportunities = Math.floor(Math.random() * 3) + 1;
       for (let i = 0; i < numOpportunities; i++) {
         await ctx.db.insert("opportunities", {
+          userId: user._id,
           accountId: account.id,
           name: opportunityNames[Math.floor(Math.random() * opportunityNames.length)],
           amount: Math.floor(Math.random() * 900000) + 100000, // $100k - $1M
@@ -131,6 +152,7 @@ export const seedDatabase = mutation({
       futureDate.setMonth(futureDate.getMonth() + Math.floor(Math.random() * 6) + 1);
       
       await ctx.db.insert("preApprovals", {
+        userId: user._id,
         accountId: account.id,
         amount: Math.floor(Math.random() * 400000) + 50000, // $50k - $450k
         status: statuses[Math.floor(Math.random() * statuses.length)],

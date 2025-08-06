@@ -2,8 +2,11 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@clerk/nextjs";
 
 export default function Dashboard() {
+  const { user } = useUser();
+  const currentUser = useQuery(api.users.getCurrentUser);
   const accounts = useQuery(api.accounts.list);
   const seedDatabase = useMutation(api.seed.seedDatabase);
 
@@ -29,6 +32,13 @@ export default function Dashboard() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <h2 className="text-lg font-semibold mb-2">User Information</h2>
+          <p>Clerk User: {user?.firstName} {user?.lastName}</p>
+          <p>Email: {user?.primaryEmailAddress?.emailAddress}</p>
+          <p>Convex User ID: {currentUser?._id || "Not synced yet"}</p>
+        </div>
+        
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Loans CRM - Accounts</h1>
           <button
